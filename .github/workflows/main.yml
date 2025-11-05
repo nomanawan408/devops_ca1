@@ -40,15 +40,16 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script_stop: true
-          # Execute the deployment script on the remote host
+          # Execute deployment commands directly on the remote host
           script: |
-            # Pull the deploy script onto the VM
-            echo '{{ github.workspace }}/deploy.sh' > deploy.sh
-            chmod +x deploy.sh
-
-            # Run the deployment script with the image name as an argument
-            ./deploy.sh ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+            # Stop and remove existing container
+            docker stop webapp || true
+            docker rm webapp || true
             
-            # Note: This requires the VM to be rebooted once after Ansible runs 
-            # OR the 'azureuser' SSH session to be logged out and logged back in 
-            # for the user to join the docker group, so it can run the docker command.
+            # Pull the new image
+            docker pull ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+            
+            # Run the new container
+            docker run -d --name webapp -p 80:80 --restart always ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+            
+            echo "Deployment completed successfully!"

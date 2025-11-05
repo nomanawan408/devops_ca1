@@ -1,0 +1,82 @@
+# Azure DevOps Pipeline for DevOps Project
+# Alternative to GitHub Actions CI/CD
+
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - app/*
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  dockerImageName: 'nomanawan408/devops-sample-app'
+  dockerTag: 'latest'
+
+stages:
+- stage: Build
+  displayName: 'Build and Push Docker Image'
+  jobs:
+  - job: BuildAndPush
+    displayName: 'Build Docker Image'
+    steps:
+    - checkout: self
+    
+    - task: Docker@2
+      displayName: 'Login to Docker Hub'
+      inputs:
+        containerRegistry: 'docker-hub-connection' # Service connection name
+        command: 'login'
+    
+    - task: Docker@2
+      displayName: 'Build and Push Docker Image'
+      inputs:
+        containerRegistry: 'docker-hub-connection'
+        repository: '$(dockerImageName)'
+        command: 'buildAndPush'
+        Dockerfile: 'app/Dockerfile'
+        buildContext: 'app'
+        tags: |
+          $(dockerTag)
+          $(Build.BuildId)
+
+- stage: Deploy
+  displayName: 'Deploy to Azure VM'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: DeployToVM
+    displayName: 'Deploy Container to Azure VM'
+    steps:
+    - checkout: self
+    
+    - task: SSH@0
+      displayName: 'Deploy Container via SSH'
+      inputs:
+        sshEndpoint: 'azure-vm-connection' # Service connection name
+        runOptions: 'commands'
+        commands: |
+          # Stop and remove existing container
+          docker stop webapp || true
+          docker rm webapp || true
+          
+          # Pull the new image
+          docker pull $(dockerImageName):$(dockerTag)
+          
+          # Run the new container
+          docker run -d --name webapp -p 80:80 --restart always $(dockerImageName):$(dockerTag)
+          
+          echo "Deployment completed successfully!"
+        failOnStdErr: false
+
+# Instructions for setting up Azure DevOps:
+# 1. Create a new project in Azure DevOps
+# 2. Connect your GitHub repository
+# 3. Create Service Connections:
+#    - Docker Hub service connection named 'docker-hub-connection'
+#    - SSH service connection named 'azure-vm-connection' with your VM details
+# 4. Create a pipeline using this YAML file
+# 5. Run the pipeline to test the CI/CD process
