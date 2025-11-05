@@ -1,0 +1,24 @@
+---
+- name: Deploy Docker container for CI/CD
+  hosts: webservers
+  become: yes
+  
+  tasks:
+    - name: Stop and remove existing container
+      docker_container:
+        name: webapp
+        state: absent
+
+    - name: Pull latest Docker image
+      docker_image:
+        name: "{{ docker_image }}"
+        source: pull
+
+    - name: Run new container
+      docker_container:
+        name: webapp
+        image: "{{ docker_image }}"
+        state: started
+        ports:
+          - "80:80"
+        restart_policy: always

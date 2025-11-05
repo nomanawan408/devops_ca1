@@ -31,24 +31,48 @@ jobs:
           push: true
           tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
 
-      # --- 2. DEPLOY CONTAINER (CD) ---
-      - name: Deploy container to Azure VM via SSH
+      # --- 2. DEPLOY CONTAINER (CD) using Ansible ---
+      - name: Deploy container using Ansible
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script_stop: true
-          # Execute deployment commands directly on the remote host
+          # Copy and run Ansible playbook for deployment
           script: |
-            # Stop and remove existing container
-            docker stop webapp || true
-            docker rm webapp || true
+            # Create deploy directory
+            mkdir -p ~/ansible-deploy
             
-            # Pull the new image
-            docker pull ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+            # Copy the deploy playbook content
+            cat > ~/ansible-deploy/deploy.yml << 'EOF'
+            ---
+            - name: Deploy Docker container for CI/CD
+              hosts: localhost
+              connection: local
+              become: yes
+              
+              tasks:
+                - name: Stop and remove existing container
+                  docker_container:
+                    name: webapp
+                    state: absent
+
+                - name: Pull latest Docker image
+                  docker_image:
+                    name: "${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}"
+                    source: pull
+
+                - name: Run new container
+                  docker_container:
+                    name: webapp
+                    image: "${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}"
+                    state: started
+                    ports:
+                      - "80:80"
+                    restart_policy: always
+            EOF
             
-            # Run the new container
-            docker run -d --name webapp -p 80:80 --restart always ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
-            
-            echo "Deployment completed successfully!"
+            # Run the Ansible playbook
+            cd ~/ansible-deploy
+            ansible-playbook deploy.yml

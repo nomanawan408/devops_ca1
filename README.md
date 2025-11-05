@@ -141,6 +141,39 @@ Access your web application at:
 - Local test: http://localhost:8080
 - Azure VM: http://<your-vm-ip>
 
+## Configuration Management with Ansible
+
+This project uses Ansible for both initial server configuration and ongoing deployment automation:
+
+### 1. Initial Server Setup (`ansible/main.yml`)
+- **Purpose**: One-time server configuration after Terraform provisioning
+- **Tasks**:
+  - Install Docker and required packages
+  - Configure Docker service to start automatically on boot
+  - Add user to docker group for permissions
+  - Deploy initial web application container
+- **Usage**: `ansible-playbook main.yml`
+
+### 2. CI/CD Deployment (`ansible/deploy.yml`)
+- **Purpose**: Automated deployment triggered by GitHub Actions
+- **Tasks**:
+  - Stop and remove existing container
+  - Pull latest Docker image from registry
+  - Deploy new container with updated application
+- **Usage**: Automatically executed by CI/CD pipeline
+
+### 3. Automation Flow
+1. **Infrastructure Provisioning**: Terraform creates Azure VM
+2. **Configuration Management**: Ansible sets up Docker environment
+3. **Application Deployment**: GitHub Actions builds image and triggers Ansible deployment
+4. **Continuous Updates**: Every code push triggers automated deployment
+
+### Ansible Benefits
+- **Idempotent**: Safe to run multiple times
+- **Consistent**: Same configuration every deployment
+- **Scalable**: Easy to add more servers
+- **Version Controlled**: Infrastructure as code
+
 ## CI/CD Pipeline
 
 The GitHub Actions workflow automatically:
