@@ -34,11 +34,15 @@ jobs:
       # --- 2. DEPLOY CONTAINER (CD) using Ansible ---
       - name: Deploy using Ansible playbook
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/devops-sample-app
+          DOCKER_TAG: latest
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script_stop: true
+          envs: 'DOCKER_IMAGE,DOCKER_TAG'
           script: |
             # Install Ansible if not present
             if ! command -v ansible-playbook &> /dev/null; then
@@ -47,29 +51,20 @@ jobs:
               sudo apt install -y ansible
             fi
             
-            # Create temporary playbook file
-            cat > /tmp/deploy.yml << 'PLAYBOOK'
-            ---
-            - name: Deploy Docker Container
-              hosts: localhost
-              connection: local
-              become: yes
-              tasks:
-                - name: Stop existing container
-                  shell: docker stop webapp || true
-                
-                - name: Remove existing container
-                  shell: docker rm webapp || true
-                
-                - name: Pull latest image
-                  shell: docker pull ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
-                
-                - name: Run new container
-                  shell: docker run -d --name webapp -p 80:80 --restart always ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
-                
-                - name: Verify deployment
-                  shell: docker ps | grep webapp
-            PLAYBOOK
+            # Create deploy directory
+            mkdir -p ~/ansible-deploy
+            cd ~/ansible-deploy
             
-            # Run the playbook
-            ansible-playbook /tmp/deploy.yml
+            # Clone or pull the repository to get the latest playbook
+            if [ ! -d "devops_ca1" ]; then
+              git clone https://github.com/nomanawan408/devops_ca1.git
+            else
+              cd devops_ca1
+              git pull origin main
+              cd ..
+            fi
+            
+            # Run the complete-deploy.yml playbook with environment variables
+            export DOCKER_IMAGE
+            export DOCKER_TAG
+            ansible-playbook devops_ca1/ansible/complete-deploy.yml -i localhost, -c local

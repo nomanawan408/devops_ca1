@@ -1,7 +1,12 @@
 ---
 - name: Complete DevOps Deployment
-  hosts: webservers
+  hosts: localhost
+  connection: local
   become: yes
+  
+  vars:
+    docker_image: "{{ lookup('env', 'DOCKER_IMAGE') | default('nomanawan408/devops-sample-app') }}"
+    docker_tag: "{{ lookup('env', 'DOCKER_TAG') | default('latest') }}"
   
   tasks:
     - name: Update apt cache
@@ -42,16 +47,17 @@
       docker_container:
         name: webapp
         state: absent
+      ignore_errors: yes
 
     - name: Pull latest Docker image
       docker_image:
-        name: "{{ docker_image | default('nomanawan408/devops-sample-app:latest') }}"
+        name: "{{ docker_image }}:{{ docker_tag }}"
         source: pull
 
     - name: Run new container
       docker_container:
         name: webapp
-        image: "{{ docker_image | default('nomanawan408/devops-sample-app:latest') }}"
+        image: "{{ docker_image }}:{{ docker_tag }}"
         state: started
         ports:
           - "80:80"
