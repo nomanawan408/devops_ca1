@@ -1,9 +1,9 @@
 # Terraform generated files
-.terraform/
+terraform/.terraform/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
-
+terraform/.terraform/providers/registry.terraform.io/hashicorp/azurerm/3.117.1/windows_386/terraform-provider-azurerm_v3.117.1_x5.exe
 # Sensitive data (plan files may contain secrets)
 *.tfplan
 
