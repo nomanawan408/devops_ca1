@@ -1,0 +1,67 @@
+---
+- name: Complete DevOps Deployment
+  hosts: webservers
+  become: yes
+  
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install required packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - docker.io
+        - python3-pip
+        - nodejs
+        - npm
+      when: ansible_os_family == "Debian"
+
+    - name: Start and enable Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add azureuser to docker group
+      user:
+        name: azureuser
+        groups: docker
+        append: yes
+
+    - name: Install Docker Python module
+      pip:
+        name: docker
+        state: present
+
+    - name: Stop and remove existing container
+      docker_container:
+        name: webapp
+        state: absent
+
+    - name: Pull latest Docker image
+      docker_image:
+        name: "{{ docker_image | default('nomanawan408/devops-sample-app:latest') }}"
+        source: pull
+
+    - name: Run new container
+      docker_container:
+        name: webapp
+        image: "{{ docker_image | default('nomanawan408/devops-sample-app:latest') }}"
+        state: started
+        ports:
+          - "80:80"
+        restart_policy: always
+
+    - name: Verify container is running
+      docker_container_info:
+        name: webapp
+      register: container_info
+
+    - name: Display container status
+      debug:
+        msg: "Container {{ container_info.container[0].Name }} is running with status {{ container_info.container[0].State.Status }}"

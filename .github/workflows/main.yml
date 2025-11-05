@@ -32,27 +32,61 @@ jobs:
           tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
 
       # --- 2. DEPLOY CONTAINER (CD) using Ansible ---
-      - name: Deploy container using Ansible
+      - name: Deploy using complete Ansible playbook
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script_stop: true
-          # Copy and run Ansible playbook for deployment
+          # Run complete Ansible playbook for deployment
           script: |
             # Create deploy directory
             mkdir -p ~/ansible-deploy
             
-            # Copy the deploy playbook content
-            cat > ~/ansible-deploy/deploy.yml << 'EOF'
+            # Copy the complete Ansible playbook
+            cat > ~/ansible-deploy/complete-deploy.yml << 'EOF'
             ---
-            - name: Deploy Docker container for CI/CD
+            - name: Complete DevOps Deployment
               hosts: localhost
               connection: local
               become: yes
               
               tasks:
+                - name: Update apt cache
+                  apt:
+                    update_cache: yes
+                    cache_valid_time: 3600
+                  when: ansible_os_family == "Debian"
+
+                - name: Install required packages
+                  apt:
+                    name: "{{ item }}"
+                    state: present
+                  loop:
+                    - docker.io
+                    - python3-pip
+                    - nodejs
+                    - npm
+                  when: ansible_os_family == "Debian"
+
+                - name: Start and enable Docker service
+                  service:
+                    name: docker
+                    state: started
+                    enabled: yes
+
+                - name: Add azureuser to docker group
+                  user:
+                    name: azureuser
+                    groups: docker
+                    append: yes
+
+                - name: Install Docker Python module
+                  pip:
+                    name: docker
+                    state: present
+
                 - name: Stop and remove existing container
                   docker_container:
                     name: webapp
@@ -71,8 +105,17 @@ jobs:
                     ports:
                       - "80:80"
                     restart_policy: always
+
+                - name: Verify container is running
+                  docker_container_info:
+                    name: webapp
+                  register: container_info
+
+                - name: Display container status
+                  debug:
+                    msg: "Container {{ container_info.container[0].Name }} is running with status {{ container_info.container[0].State.Status }}"
             EOF
             
-            # Run the Ansible playbook
+            # Run the complete Ansible playbook
             cd ~/ansible-deploy
-            ansible-playbook deploy.yml
+            ansible-playbook complete-deploy.yml
