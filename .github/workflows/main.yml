@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'app/**' # Trigger only when app code changes
+  workflow_dispatch: # Enable manual trigger from GitHub UI
 
 env:
   DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/devops-sample-app # CHANGE 'YOUR-USERNAME'
