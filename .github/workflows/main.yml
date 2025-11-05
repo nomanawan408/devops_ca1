@@ -1,0 +1,54 @@
+name: CI/CD Pipeline to Azure VM
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**' # Trigger only when app code changes
+
+env:
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/devops-sample-app # CHANGE 'YOUR-USERNAME'
+  DOCKER_TAG: latest
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # --- 1. BUILD AND PUSH IMAGE (CI) ---
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app  # Use the Dockerfile and code in the 'app' directory
+          push: true
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+
+      # --- 2. DEPLOY CONTAINER (CD) ---
+      - name: Deploy container to Azure VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script_stop: true
+          # Execute the deployment script on the remote host
+          script: |
+            # Pull the deploy script onto the VM
+            echo '{{ github.workspace }}/deploy.sh' > deploy.sh
+            chmod +x deploy.sh
+
+            # Run the deployment script with the image name as an argument
+            ./deploy.sh ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+            
+            # Note: This requires the VM to be rebooted once after Ansible runs 
+            # OR the 'azureuser' SSH session to be logged out and logged back in 
+            # for the user to join the docker group, so it can run the docker command.

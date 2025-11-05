@@ -1,0 +1,21 @@
+# Terraform generated files
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Sensitive data (plan files may contain secrets)
+*.tfplan
+
+# Backup/crash files created by some editors
+*~
+
+# Python/Ansible Cache
+__pycache__/
+
+# Node/App dependencies (if using Node.js)
+node_modules/
+
+# Ignore local private keys
+*.pem
+*.key
