@@ -32,39 +32,30 @@ jobs:
           tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
 
       # --- 2. DEPLOY CONTAINER (CD) using Ansible ---
+      - name: Setup SSH key for Ansible
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
       - name: Deploy using Ansible playbook
-        uses: appleboy/ssh-action@v1.0.3
+        run: |
+          # Install Ansible
+          sudo apt update
+          sudo apt install -y ansible
+          
+          # Create inventory file with secrets
+          cat > /tmp/inventory.ini << EOF
+          [webservers]
+          azure-server ansible_host=${{ secrets.VM_HOST }} ansible_user=${{ secrets.VM_USER }} ansible_ssh_private_key_file=~/.ssh/id_rsa
+          EOF
+          
+          # Set environment variables for the playbook
+          export DOCKER_IMAGE=${{ secrets.DOCKER_USERNAME }}/devops-sample-app
+          export DOCKER_TAG=latest
+          
+          # Run the Ansible playbook
+          ansible-playbook -i /tmp/inventory.ini ansible/complete-deploy.yml
         env:
-          DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/devops-sample-app
-          DOCKER_TAG: latest
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script_stop: true
-          envs: 'DOCKER_IMAGE,DOCKER_TAG'
-          script: |
-            # Install Ansible if not present
-            if ! command -v ansible-playbook &> /dev/null; then
-              echo "Installing Ansible..."
-              sudo apt update
-              sudo apt install -y ansible
-            fi
-            
-            # Create deploy directory
-            mkdir -p ~/ansible-deploy
-            cd ~/ansible-deploy
-            
-            # Clone or pull the repository to get the latest playbook
-            if [ ! -d "devops_ca1" ]; then
-              git clone https://github.com/nomanawan408/devops_ca1.git
-            else
-              cd devops_ca1
-              git pull origin main
-              cd ..
-            fi
-            
-            # Run the complete-deploy.yml playbook with environment variables
-            export DOCKER_IMAGE
-            export DOCKER_TAG
-            ansible-playbook devops_ca1/ansible/complete-deploy.yml -i localhost, -c local
+          ANSIBLE_HOST_KEY_CHECKING: false

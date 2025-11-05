@@ -1,7 +1,6 @@
 ---
 - name: Complete DevOps Deployment
-  hosts: localhost
-  connection: local
+  hosts: webservers
   become: yes
   
   vars:
@@ -13,7 +12,6 @@
       apt:
         update_cache: yes
         cache_valid_time: 3600
-      when: ansible_os_family == "Debian"
 
     - name: Install required packages
       apt:
@@ -24,7 +22,6 @@
         - python3-pip
         - nodejs
         - npm
-      when: ansible_os_family == "Debian"
 
     - name: Start and enable Docker service
       service:
@@ -64,10 +61,9 @@
         restart_policy: always
 
     - name: Verify container is running
-      docker_container_info:
-        name: webapp
-      register: container_info
+      shell: docker ps | grep webapp
+      register: container_check
 
-    - name: Display container status
+    - name: Display deployment status
       debug:
-        msg: "Container {{ container_info.container[0].Name }} is running with status {{ container_info.container[0].State.Status }}"
+        msg: "✅ Container deployed successfully! Image: {{ docker_image }}:{{ docker_tag }}"
