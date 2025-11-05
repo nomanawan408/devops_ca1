@@ -1,0 +1,42 @@
+---
+ - name: Deploy Docker application container
+   hosts: webservers
+   become: yes
+ 
+   vars:
+     # image, registry_user, registry_password should be supplied via --extra-vars
+     image: ""
+     registry_user: ""
+     registry_password: ""
+ 
+   tasks:
+     - name: Ensure python3-pip is installed
+       apt:
+         name: python3-pip
+         state: present
+         update_cache: yes
+ 
+     - name: Ensure docker is present (install if missing)
+       apt:
+         name: docker.io
+         state: present
+ 
+     - name: Install docker python module for Ansible
+       pip:
+         name: docker
+         executable: pip3
+ 
+     - name: Login to container registry (GHCR / Docker Hub etc.)
+       community.docker.docker_login:
+         registry: ghcr.io
+         username: "{{ registry_user }}"
+         password: "{{ registry_password }}"
+ 
+     - name: Pull and run application container
+       community.docker.docker_container:
+         name: app
+         image: "{{ image }}"
+         state: started
+         restart_policy: always
+         ports:
+           - "80:80"
