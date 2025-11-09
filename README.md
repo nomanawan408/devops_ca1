@@ -160,128 +160,69 @@ This project uses Ansible for both initial server configuration and ongoing depl
   - Stop and remove existing container
   - Pull latest Docker image from registry
   - Deploy new container with updated application
-- **Usage**: Automatically executed by CI/CD pipeline
+# DevOps CA1 — simple overview
 
-### 3. Automation Flow
-1. **Infrastructure Provisioning**: Terraform creates Azure VM
-2. **Configuration Management**: Ansible sets up Docker environment
-3. **Application Deployment**: GitHub Actions builds image and triggers Ansible deployment
-4. **Continuous Updates**: Every code push triggers automated deployment
+This repository contains a small DevOps project that provisions an Azure VM with Terraform, configures it with Ansible, and runs a simple single-page web app (SPA) served in a container. The SPA fetches cybersecurity news from a paid API when available and falls back to token-less sources (Reddit / Hacker News) or sample data.
 
-### Ansible Benefits
-- **Idempotent**: Safe to run multiple times
-- **Consistent**: Same configuration every deployment
-- **Scalable**: Easy to add more servers
-- **Version Controlled**: Infrastructure as code
+Keep this README short — the important bits are below.
 
-## CI/CD Pipeline
-
-The GitHub Actions workflow automatically:
-
-1. **Triggers** on pushes to main branch when files in `app/` directory change
-2. **Builds** the Docker image using the Dockerfile in `app/`
-3. **Pushes** the image to Docker Hub
-4. **Deploys** the new container to your Azure VM via SSH
-
-### Pipeline Workflow:
-
-```yaml
-on:
-  push:
-    branches: [main]
-    paths: ['app/**']
+Project layout (top-level)
+```
+app/        # web app (HTML/CSS/JS, Dockerfile, nginx config)
+ansible/    # Ansible playbooks to configure the VM and deploy the container
+terraform/  # Terraform to provision Azure resources (VM, NSG, public IP)
+.github/     # GitHub Actions workflow (CI/CD)
+README.md
 ```
 
-## Application Features
+Run the app locally (quick)
+- Option A: open `app/index.html` in a browser (works, but some browsers block API calls from file://)
+- Option B (recommended): start a simple HTTP server in the `app/` folder:
 
-The sample web application includes:
-- Responsive single-page design
-- Navigation between Home, About, and Contact sections
-- Contact form with validation
-- Modern CSS styling
-- Interactive JavaScript functionality
-
-## Monitoring and Maintenance
-
-### Check Container Status on VM:
-
-```bash
-# SSH into your VM
-ssh azureuser@<your-vm-ip>
-
-# Check running containers
-docker ps
-
-# View container logs
-docker logs webapp
-
-# Stop/start container
-docker stop webapp
-docker start webapp
+PowerShell (Windows):
+```powershell
+cd app
+python -m http.server 8000
+# then open http://localhost:8000
 ```
 
-### Update Application:
+Where to set the NewsAPI key
+- Edit `app/index.html` and set a real key on the `<body>` element: `data-api-key="YOUR_REAL_KEY"`.
+- If no valid key is present the app will automatically fall back to Reddit (r/cybersecurity, r/netsec) then Hacker News, then a bundled sample dataset.
 
-1. Make changes to files in `app/` directory
-2. Commit and push to GitHub main branch
-3. CI/CD pipeline will automatically build and deploy
-
-## Troubleshooting
-
-### Common Issues:
-
-1. **Docker group permissions**: After Ansible setup, you may need to logout and login again for docker group permissions to take effect.
-
-2. **SSH connection issues**: Ensure your SSH key is properly configured and the VM_SSH_KEY secret contains the complete private key.
-
-3. **Docker Hub authentication**: Use a Docker Hub access token instead of password for better security.
-
-4. **Port conflicts**: Ensure port 80 is not in use by other services on the VM.
-
-### Debugging CI/CD:
-
-Check GitHub Actions logs for detailed error information. Common failures:
-- Missing or incorrect secrets
-- Docker Hub authentication issues
-- SSH connection timeouts
-- Image build failures
-
-## Security Considerations
-
-- Use Docker Hub access tokens instead of passwords
-- Restrict SSH access to specific IP addresses in production
-- Regularly update base images and dependencies
-- Implement proper logging and monitoring
-- Use HTTPS in production (add SSL certificate)
-
-## Cost Optimization
-
-- Use smaller VM sizes for development/testing
-- Stop VM when not in use
-- Monitor Azure resource usage
-- Consider Azure Container Instances for production workloads
-
-## Extensions
-
-This project can be extended with:
-- Database integration (PostgreSQL/MySQL)
-- Load balancing with multiple containers
-- SSL/TLS certificate management
-- Monitoring with Prometheus/Grafana
-- Log aggregation with ELK stack
-- Automated testing in CI pipeline
-
-## Clean Up
-
-To remove all resources and avoid charges:
-
-```bash
+Provision infrastructure (Terraform)
+```powershell
 cd terraform
-terraform destroy -auto-approve
+terraform init
+terraform plan
+terraform apply -auto-approve
+terraform output    # shows VM public IP
 ```
 
-This will remove:
-- Azure VM and all networking components
-- Resource group
-- Public IP address
-- All associated storage
+Configure server (Ansible)
+```powershell
+cd ansible
+# update inventory.ini with the VM IP from terraform output
+ansible-playbook main.yml
+```
+
+What the Ansible playbook does (summary)
+- Installs Docker and required packages
+- Starts Docker and adds the deploy user to the docker group
+- Deploys the web app container (Nginx) from the Docker image
+
+Local development and CI/CD
+- The GitHub Actions workflow builds and pushes a Docker image from `app/` when you push to main. It then triggers the deployment playbook via SSH (configured with repository secrets).
+
+Notes on design and behavior
+- UI uses Bootstrap (CDN) and a clean card-based layout.
+- JavaScript fetches NewsAPI when a key is provided; handled HTTP errors (426/401/429) and uses token-less fallbacks automatically.
+- Contact form is present as a demo and is handled client-side (no backend by default).
+
+Troubleshooting (quick)
+- If news do not load, check DevTools Console for errors and confirm the `data-api-key` value if you expect NewsAPI results.
+- If Reddit/HN fallback is empty, your network may block those endpoints (CORS or firewall); consider running a small server-side proxy.
+
+If you want, I can add a tiny Express proxy to keep API keys secret and avoid CORS — say the word and I will scaffold it and a short README section.
+
+That's it — simple and focused. Use the folders above to inspect Terraform and Ansible details when you need to change the infra or provisioning steps.

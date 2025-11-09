@@ -12,51 +12,22 @@ body {
 }
 
 /* Header and Navigation */
-header {
-    background-color: #2c3e50;
-    padding: 1rem 0;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    z-index: 100;
+:root{
+    --bg:#0f1724;
+    --card:#0b1220;
+    --accent:#0ea5ff;
+    --muted:#94a3b8;
 }
 
-nav {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-nav h1 {
-    color: white;
-}
-
-nav ul {
-    list-style: none;
-    display: flex;
-    gap: 20px;
-}
-
-nav a {
-    color: white;
-    text-decoration: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    transition: background-color 0.3s;
-}
-
-nav a:hover,
-nav a.active {
-    background-color: #34495e;
+/* Header & nav use Bootstrap; keep top spacing for fixed navbar */
+body {
+    background: linear-gradient(180deg,#f6f7fb 0%, #eef2f7 100%);
 }
 
 /* Main Content */
 main {
     max-width: 1200px;
-    margin: 80px auto 20px;
+    margin: 24px auto 20px;
     padding: 20px;
 }
 
@@ -95,19 +66,26 @@ textarea {
 }
 
 button {
-    background-color: #2c3e50;
-    color: white;
-    padding: 10px 20px;
+    background-color: var(--accent);
+    color: #052029;
+    padding: 10px 18px;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s;
+    font-weight: 600;
 }
 
-button:hover {
-    background-color: #34495e;
+button:hover{opacity:.95}
+
+/* Card tweaks for news */
+.news-card{
+    border-radius:12px;
+    overflow:hidden;
+    background:linear-gradient(180deg,#ffffff,#fbfdff);
+    border:1px solid rgba(15,23,36,0.04);
 }
+.news-card .card-body h5{font-size:1.05rem;font-weight:700}
+.news-meta{font-size:.85rem;color:var(--muted)}
 
 /* Footer */
 footer {
